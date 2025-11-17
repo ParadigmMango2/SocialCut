@@ -2,8 +2,8 @@
 	"manifest_version": 3,
 	"name": "Social Cut",
 	"description": "Track your social media usage and encourage limited use.",
-	"version": "0.1",
-	"action": {},
+	"version": "0.2",
+	"action": { "default_popup": "popup.html" },
 	"icons": {
 		"16": "images/icon-16.png",
 		"32": "images/icon-32.png",
