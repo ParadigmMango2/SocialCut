@@ -1,0 +1,15 @@
+{
+	"manifest_version": 3,
+	"name": "Social Cut",
+	"description": "Track your social media usage and encourage limited use.",
+	"version": "0.1",
+	"action": {},
+	"icons": {},
+	"permissions": [],
+	"content_scripts": [],
+	"browser_specific_settings": {
+		"gecko": {
+			"id": "@social-cut.paradigmmango"
+		}
+	}
+}
