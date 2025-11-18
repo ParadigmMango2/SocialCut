@@ -3,6 +3,7 @@ console.log("hi from worker");
 
 let startTime = null;
 let curTab = null;
+let curWindow = null;
 let audibleTabs = null;
 
 
@@ -12,6 +13,16 @@ async function updateAudibleTabs() {
 }
 updateAudibleTabs();
 
+
+// track window focus
+browser.windows.onFocusChanged.addListener((windowId) => {
+	curWindow = windowId;
+
+	console.log(curWindow);
+});
+
+
+// track tab activation
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
 	const tab = await chrome.tabs.get(activeInfo.tabId);
 	console.log(tab.url);
