@@ -7,7 +7,7 @@ let audibleTabs = null;
 
 
 async function updateAudibleTabs() {
-	audibleTabs = await chrome.tabs.query({ audible: true });
+	audibleTabs = (await chrome.tabs.query({ audible: true })).map(tab => ({"id": tab.id, "url": tab.url}));
 	console.log(audibleTabs);
 }
 updateAudibleTabs();
@@ -23,8 +23,6 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 
 	curTab = tab;
 	startTime = Date.now();
-
-	await updateAudibleTabs();
 
 	console.log(startTime);
 });
