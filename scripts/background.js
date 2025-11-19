@@ -1,21 +1,31 @@
 console.log("hi from worker");
 
-
 let startTime = null;
 let curTab = null;
 let curWindow = null;
-let audibleTabs = null;
+const audibleTabs = new Map();
 
 
-async function updateAudibleTabs() {
-	audibleTabs = (await chrome.tabs.query({ audible: true })).map(tab => ({"id": tab.id, "url": tab.url, "windowId": tab.windowId }));
-	console.log(audibleTabs);
+chrome.storage.local.set({
+  totalSiteTimes: {}
+});
+
+
+function pruneTab(tab) {
+    return {"id": tab.id, "url": tab.url, "windowId": tab.windowId};
 }
-updateAudibleTabs();
+
+function pruneTabArr(tabArr) {
+	return tabArr.map(tab => ({"id": tab.id, "url": tab.url, "windowId": tab.windowId }));
+}
+
+function getDomain(url) {
+	return url.match("\/\/(.*?)(\/|$)")?.[1];
+}
 
 
 async function trackTab() {
-	const activeTab = (await chrome.tabs.query({ active: true, lastFocusedWindow: true })).map(tab => ({"id": tab.id, "url": tab.url, "windowId": tab.windowId }));
+	const activeTab = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
 
 	console.log(activeTab);
 }
@@ -57,8 +67,41 @@ function logUpdated(tabId, changeInfo, tab) {
 	console.log(tab);
 }
 
+// TODO: add startup play handling
+async function handleAudibleTab(tabId, changeInfo, tab) {
+	console.log("Tab updated");
+	console.log(tabId);
+	console.log(changeInfo);
+	console.log(tab);
+
+	const domain = getDomain(tab.url);
+if (changeInfo.audible) {
+		audibleTabs.set(
+			tabId,
+			{
+				"domain": domain,
+				"startTime": Date.now()
+			}
+		);
+	} else {
+		const timeListened = Date.now() - audibleTabs.get(tabId)["startTime"];
+		console.log("Total time listening: " + timeListened);
+
+		audibleTabs.delete(tabId);
+
+		// Update site times
+		const { totalSiteTimes } = await chrome.storage.local.get("totalSiteTimes");
+		const totalTime = (totalSiteTimes[domain] || 0) + timeListened;
+		totalSiteTimes[domain] = totalTime;
+		await chrome.storage.local.set({ totalSiteTimes });
+		console.log(totalSiteTimes);
+	}
+
+	console.log(audibleTabs);
+}
+
 const audibleFilter = {
 	properties: ["audible"]
 };
 
-chrome.tabs.onUpdated.addListener(logUpdated, audibleFilter);
+chrome.tabs.onUpdated.addListener(handleAudibleTab, audibleFilter);
