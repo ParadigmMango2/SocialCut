@@ -146,12 +146,42 @@ const audibleFilter = {
 // ======================================================================
 // Init Logic
 // ======================================================================
+async function getCurrentWindow() {
+	const windows = await chrome.windows.getAll();
+	const focusedWindow = windows.find(w => w.focused);
+
+	if (!focusedWindow) {
+		return chrome.windows.WINDOW_ID_NONE;
+	} else {
+		return focusedWindow.id;
+	}
+}
+
+async function init() {
+	curWindow = await getCurrentWindow();
+
+	const [ tab ] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+	if (curWindow !== chrome.windows.WINDOW_ID_NONE) {
+		curTab = {
+			"id": tab.id,
+			"domain": getDomain(tab.url),
+			"startTime": Date.now()
+		}
+	}
+
+	// console.log(curWindow);
+	// console.log(tab);
+	// console.log(curTab);
+}
+
 async function handleStartup() {
 	console.log("Browser started");
+	await init();
 }
 
 async function handleInstall(details) {
 	console.log("Extension installed: " + details.reason);
+	await init();
 }
 
 chrome.runtime.onStartup.addListener(handleStartup);
