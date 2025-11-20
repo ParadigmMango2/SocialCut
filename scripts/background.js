@@ -67,41 +67,49 @@ function logUpdated(tabId, changeInfo, tab) {
 	console.log(tab);
 }
 
-// TODO: add startup play handling
+
+async function startTrackingAudible(tabId, tab) {
+	audibleTabs.set(
+		tabId,
+		{
+			"domain": getDomain(tab.url),
+			"startTime": Date.now()
+		}
+	);
+}
+
+
+async function stopTrackingAudible(tabId) {
+	const domain = audibleTabs.get(tabId)["domain"];
+	const timeListened = Date.now() - audibleTabs.get(tabId)["startTime"];
+
+	audibleTabs.delete(tabId);
+
+	// Update site times
+	const { totalSiteTimes } = await chrome.storage.local.get("totalSiteTimes");
+	const totalTime = (totalSiteTimes[domain] || 0) + timeListened;
+	totalSiteTimes[domain] = totalTime;
+	await chrome.storage.local.set({ totalSiteTimes });
+
+	// console.log(totalSiteTimes);
+}
+
+
 async function handleAudibleTab(tabId, changeInfo, tab) {
-	console.log("Tab updated");
-	console.log(tabId);
-	console.log(changeInfo);
-	console.log(tab);
+	// console.log(changeInfo);
 
-	const domain = getDomain(tab.url);
-if (changeInfo.audible) {
-		audibleTabs.set(
-			tabId,
-			{
-				"domain": domain,
-				"startTime": Date.now()
-			}
-		);
-	} else {
-		const timeListened = Date.now() - audibleTabs.get(tabId)["startTime"];
-		console.log("Total time listening: " + timeListened);
-
-		audibleTabs.delete(tabId);
-
-		// Update site times
-		const { totalSiteTimes } = await chrome.storage.local.get("totalSiteTimes");
-		const totalTime = (totalSiteTimes[domain] || 0) + timeListened;
-		totalSiteTimes[domain] = totalTime;
-		await chrome.storage.local.set({ totalSiteTimes });
-		console.log(totalSiteTimes);
+	if (changeInfo.url && audibleTabs.has(tabId)) {
+		stopTrackingAudible(tabId);
+		startTrackingAudible(tabId, tab);
+	} else if (changeInfo.audible) {
+		startTrackingAudible(tabId, tab);
+	} else if (!changeInfo.audible && audibleTabs.has(tabId)) {
+		stopTrackingAudible(tabId);
 	}
-
-	console.log(audibleTabs);
 }
 
 const audibleFilter = {
-	properties: ["audible"]
+	properties: ["audible", "url"]
 };
 
 chrome.tabs.onUpdated.addListener(handleAudibleTab, audibleFilter);
