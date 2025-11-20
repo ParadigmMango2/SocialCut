@@ -3,6 +3,7 @@ console.log("hi from worker");
 let startTime = null;
 let curTab = null;
 let curWindow = null;
+
 const audibleTabs = new Map();
 
 
@@ -11,62 +12,90 @@ chrome.storage.local.set({
 });
 
 
-function pruneTab(tab) {
-    return {"id": tab.id, "url": tab.url, "windowId": tab.windowId};
-}
+// function pruneTab(tab) {
+//     return {"id": tab.id, "url": tab.url, "windowId": tab.windowId};
+// }
 
-function pruneTabArr(tabArr) {
-	return tabArr.map(tab => ({"id": tab.id, "url": tab.url, "windowId": tab.windowId }));
-}
+// function pruneTabArr(tabArr) {
+// 	return tabArr.map(tab => ({"id": tab.id, "url": tab.url, "windowId": tab.windowId }));
+// }
 
 function getDomain(url) {
 	return url.match("\/\/(.*?)(\/|$)")?.[1];
 }
 
 
-async function trackTab() {
-	const activeTab = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+// async function trackTab() {
+// 	const activeTab = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+//
+// 	console.log(activeTab);
+// }
+// trackTab();
 
-	console.log(activeTab);
+
+
+// // track tab activation
+// chrome.tabs.onActivated.addListener(async (activeInfo) => {
+// 	console.log("Tab activated");
+//
+// 	const tab = await chrome.tabs.get(activeInfo.tabId);
+// 	console.log(tab.url);
+//
+// 	trackTab();
+//
+// 	if (curTab) {
+// 		const timeSpent = Date.now() - startTime;
+// 		console.log(timeSpent);
+// 	}
+//
+// 	curTab = tab;
+// 	startTime = Date.now();
+//
+// 	console.log(startTime);
+// });
+
+
+
+// ======================================================================
+// Current Tab Tracking
+// ======================================================================
+
+// NOTE: Look out for active changed when making new window
+async function handleTabActivation(activeInfo) {
+	console.log("Active changed")
+	console.log(activeInfo);
 }
-trackTab();
+chrome.tabs.onActivated.addListener(handleTabActivation);
 
+async function handleUrl(tabId, changeInfo, tab) {
+	if (tab.status === "complete") {
+		console.log("URL updated");
+		console.log(tabId);
+		console.log(changeInfo);
+		console.log(tab);
+	}
+}
+const urlFilter = {
+	properties: ["url"]
+};
+chrome.tabs.onUpdated.addListener(handleUrl, urlFilter);
 
-// track window focus
+async function handleRemoval(tabId, removeInfo) {
+	console.log("Tab removed");
+	console.log(tabId);
+	console.log(removeInfo);
+}
+chrome.tabs.onRemoved.addListener(handleRemoval);
+
 chrome.windows.onFocusChanged.addListener((windowId) => {
 	curWindow = windowId;
-
 	console.log("Cur window:" + curWindow);
 });
 
 
-// track tab activation
-chrome.tabs.onActivated.addListener(async (activeInfo) => {
-	console.log("Tab activated");
-
-	const tab = await chrome.tabs.get(activeInfo.tabId);
-	console.log(tab.url);
-
-	trackTab();
-
-	if (curTab) {
-		const timeSpent = Date.now() - startTime;
-		console.log(timeSpent);
-	}
-
-	curTab = tab;
-	startTime = Date.now();
-
-	console.log(startTime);
-});
-
-function logUpdated(tabId, changeInfo, tab) {
-	console.log("Tab updated");
-	console.log(tabId);
-	console.log(changeInfo);
-	console.log(tab);
-}
-
+// ======================================================================
+// Audible Tab Tracking
+// ======================================================================
 
 async function startTrackingAudible(tabId, tab) {
 	audibleTabs.set(
@@ -112,4 +141,7 @@ const audibleFilter = {
 	properties: ["audible", "url"]
 };
 
-chrome.tabs.onUpdated.addListener(handleAudibleTab, audibleFilter);
+// chrome.tabs.onUpdated.addListener(handleAudibleTab, audibleFilter);
+
+
+
