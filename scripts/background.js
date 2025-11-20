@@ -58,12 +58,45 @@ function getDomain(url) {
 // Current Tab Tracking
 // ======================================================================
 
+async function startTracking(tab) {
+	curTab = {
+		"id": tab.id,
+		"domain": getDomain(tab.url),
+		"startTime": Date.now()
+	}
+}
+
+
+async function stopTracking() {
+	const domain = curTab["domain"];
+	const timeListened = Date.now() - curTab["startTime"];
+
+	curTab = null;
+
+	// Update site times
+	const { totalSiteTimes } = await chrome.storage.local.get("totalSiteTimes");
+	const totalTime = (totalSiteTimes[domain] || 0) + timeListened;
+	totalSiteTimes[domain] = totalTime;
+	await chrome.storage.local.set({ totalSiteTimes });
+
+	console.log(totalSiteTimes);
+}
+
 // NOTE: Look out for active changed when making new window
 async function handleTabActivation(activeInfo) {
+	const tab = await chrome.tabs.get(activeInfo.tabId);
+
+	if (curTab) {
+		stopTracking();
+	}
+
+	startTracking(tab);
+
 	console.log("Active changed")
-	console.log(activeInfo);
+	console.log(tab);
 }
 chrome.tabs.onActivated.addListener(handleTabActivation);
+
 
 async function handleUrl(tabId, changeInfo, tab) {
 	if (tab.status === "complete") {
@@ -78,6 +111,7 @@ const urlFilter = {
 };
 chrome.tabs.onUpdated.addListener(handleUrl, urlFilter);
 
+
 async function handleRemoval(tabId, removeInfo) {
 	console.log("Tab removed");
 	console.log(tabId);
@@ -85,10 +119,12 @@ async function handleRemoval(tabId, removeInfo) {
 }
 chrome.tabs.onRemoved.addListener(handleRemoval);
 
+
 chrome.windows.onFocusChanged.addListener((windowId) => {
 	curWindow = windowId;
 	console.log("Cur window:" + curWindow);
 });
+
 
 
 // ======================================================================
