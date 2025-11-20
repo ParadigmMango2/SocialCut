@@ -1,5 +1,3 @@
-console.log("hi from worker");
-
 let startTime = null;
 let curTab = null;
 let curWindow = null;
@@ -145,3 +143,16 @@ const audibleFilter = {
 
 
 
+// ======================================================================
+// Init Logic
+// ======================================================================
+async function handleStartup() {
+	console.log("Browser started");
+}
+
+async function handleInstall(details) {
+	console.log("Extension installed: " + details.reason);
+}
+
+chrome.runtime.onStartup.addListener(handleStartup);
+chrome.runtime.onInstalled.addListener(handleInstall);
