@@ -1,4 +1,3 @@
-let startTime = null;
 let curTab = null;
 
 const audibleTabs = new Map();
@@ -134,14 +133,6 @@ const urlFilter = {
 chrome.tabs.onUpdated.addListener(handleUrl, urlFilter);
 
 
-async function handleRemoval(tabId, removeInfo) {
-	console.log("Tab removed");
-	console.log(tabId);
-	console.log(removeInfo);
-}
-chrome.tabs.onRemoved.addListener(handleRemoval);
-
-
 async function handleWindow(windowId) {
 	const curWindow = windowId;
 	// console.log("Cur window:" + curWindow);
@@ -151,7 +142,7 @@ async function handleWindow(windowId) {
 	}
 
 	if (curWindow !== chrome.windows.WINDOW_ID_NONE) {
-		tab = await getCurrentTab();
+		const tab = await getActiveTab();
 		startTracking(tab);
 	}
 }
