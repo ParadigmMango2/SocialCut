@@ -58,6 +58,11 @@ function getDomain(url) {
 // Current Tab Tracking
 // ======================================================================
 
+async function getActiveTab() {
+	const [ tab ] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+	return tab;
+}
+
 async function startTracking(tab) {
 	curTab = {
 		"id": tab.id,
@@ -92,8 +97,8 @@ async function handleTabActivation(activeInfo) {
 
 	startTracking(tab);
 
-	console.log("Active changed")
-	console.log(tab);
+	// console.log("Active changed")
+	// console.log(tab);
 }
 chrome.tabs.onActivated.addListener(handleTabActivation);
 
@@ -120,10 +125,20 @@ async function handleRemoval(tabId, removeInfo) {
 chrome.tabs.onRemoved.addListener(handleRemoval);
 
 
-chrome.windows.onFocusChanged.addListener((windowId) => {
+async function handleWindow(windowId) {
 	curWindow = windowId;
-	console.log("Cur window:" + curWindow);
-});
+	// console.log("Cur window:" + curWindow);
+
+	if (curTab) {
+		stopTracking();
+	}
+
+	if (curWindow !== chrome.windows.WINDOW_ID_NONE) {
+		tab = await getCurrentTab();
+		startTracking(tab);
+	}
+}
+chrome.windows.onFocusChanged.addListener(handleWindow);
 
 
 
@@ -196,7 +211,7 @@ async function getCurrentWindow() {
 async function init() {
 	curWindow = await getCurrentWindow();
 
-	const [ tab ] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+	const tab = await getCurrentTab();
 	if (curWindow !== chrome.windows.WINDOW_ID_NONE) {
 		curTab = {
 			"id": tab.id,
