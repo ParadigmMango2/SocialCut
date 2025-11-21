@@ -1,67 +1,81 @@
 let startTime = null;
 let curTab = null;
-let curWindow = null;
 
 const audibleTabs = new Map();
 
 
-chrome.storage.local.set({
-  totalSiteTimes: {}
-});
 
-
-// function pruneTab(tab) {
-//     return {"id": tab.id, "url": tab.url, "windowId": tab.windowId};
-// }
-
-// function pruneTabArr(tabArr) {
-// 	return tabArr.map(tab => ({"id": tab.id, "url": tab.url, "windowId": tab.windowId }));
-// }
+// ======================================================================
+// Utility Functions
+// ======================================================================
 
 function getDomain(url) {
 	return url.match("\/\/(.*?)(\/|$)")?.[1];
 }
 
 
-// async function trackTab() {
-// 	const activeTab = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-//
-// 	console.log(activeTab);
-// }
-// trackTab();
+async function getActiveTab() {
+	const [ tab ] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+	return tab;
+}
+
+
+async function getCurrentWindow() {
+	const windows = await chrome.windows.getAll();
+	const focusedWindow = windows.find(w => w.focused);
+
+	if (!focusedWindow) {
+		return chrome.windows.WINDOW_ID_NONE;
+	} else {
+		return focusedWindow.id;
+	}
+}
 
 
 
-// // track tab activation
-// chrome.tabs.onActivated.addListener(async (activeInfo) => {
-// 	console.log("Tab activated");
-//
-// 	const tab = await chrome.tabs.get(activeInfo.tabId);
-// 	console.log(tab.url);
-//
-// 	trackTab();
-//
-// 	if (curTab) {
-// 		const timeSpent = Date.now() - startTime;
-// 		console.log(timeSpent);
-// 	}
-//
-// 	curTab = tab;
-// 	startTime = Date.now();
-//
-// 	console.log(startTime);
-// });
+// ======================================================================
+// Init Logic
+// ======================================================================
 
+chrome.storage.local.set({
+  totalSiteTimes: {}
+});
+
+
+async function init() {
+	curWindow = await getCurrentWindow();
+
+	const tab = await getCurrentTab();
+	if (curWindow !== chrome.windows.WINDOW_ID_NONE) {
+		curTab = {
+			"id": tab.id,
+			"domain": getDomain(tab.url),
+			"startTime": Date.now()
+		}
+	}
+
+	// console.log(curWindow);
+	// console.log(tab);
+	// console.log(curTab);
+}
+
+async function handleStartup() {
+	console.log("Browser started");
+	await init();
+}
+
+async function handleInstall(details) {
+	console.log("Extension installed: " + details.reason);
+	await init();
+}
+
+chrome.runtime.onStartup.addListener(handleStartup);
+chrome.runtime.onInstalled.addListener(handleInstall);
 
 
 // ======================================================================
 // Current Tab Tracking
 // ======================================================================
-
-async function getActiveTab() {
-	const [ tab ] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-	return tab;
-}
 
 async function startTracking(tab) {
 	curTab = {
@@ -126,7 +140,7 @@ chrome.tabs.onRemoved.addListener(handleRemoval);
 
 
 async function handleWindow(windowId) {
-	curWindow = windowId;
+	const curWindow = windowId;
 	// console.log("Cur window:" + curWindow);
 
 	if (curTab) {
@@ -191,49 +205,3 @@ const audibleFilter = {
 };
 
 // chrome.tabs.onUpdated.addListener(handleAudibleTab, audibleFilter);
-
-
-
-// ======================================================================
-// Init Logic
-// ======================================================================
-async function getCurrentWindow() {
-	const windows = await chrome.windows.getAll();
-	const focusedWindow = windows.find(w => w.focused);
-
-	if (!focusedWindow) {
-		return chrome.windows.WINDOW_ID_NONE;
-	} else {
-		return focusedWindow.id;
-	}
-}
-
-async function init() {
-	curWindow = await getCurrentWindow();
-
-	const tab = await getCurrentTab();
-	if (curWindow !== chrome.windows.WINDOW_ID_NONE) {
-		curTab = {
-			"id": tab.id,
-			"domain": getDomain(tab.url),
-			"startTime": Date.now()
-		}
-	}
-
-	// console.log(curWindow);
-	// console.log(tab);
-	// console.log(curTab);
-}
-
-async function handleStartup() {
-	console.log("Browser started");
-	await init();
-}
-
-async function handleInstall(details) {
-	console.log("Extension installed: " + details.reason);
-	await init();
-}
-
-chrome.runtime.onStartup.addListener(handleStartup);
-chrome.runtime.onInstalled.addListener(handleInstall);
