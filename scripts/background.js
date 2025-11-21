@@ -36,11 +36,6 @@ async function getCurrentWindow() {
 // Init Logic
 // ======================================================================
 
-chrome.storage.local.set({
-  totalSiteTimes: {}
-});
-
-
 async function init() {
 	curWindow = await getCurrentWindow();
 
