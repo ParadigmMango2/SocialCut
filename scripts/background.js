@@ -73,6 +73,7 @@ chrome.runtime.onStartup.addListener(handleStartup);
 chrome.runtime.onInstalled.addListener(handleInstall);
 
 
+
 // ======================================================================
 // Current Tab Tracking
 // ======================================================================
@@ -207,3 +208,18 @@ const audibleFilter = {
 };
 
 // chrome.tabs.onUpdated.addListener(handleAudibleTab, audibleFilter);
+
+
+
+// ======================================================================
+// Suspend Logic
+// ======================================================================
+
+async function handleSuspend() {
+	console.log("Extension suspending")
+
+	if (curTab) {
+		stopTracking();
+	}
+}
+chrome.runtime.onSuspend.addListener(handleSuspend);
