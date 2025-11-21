@@ -118,12 +118,14 @@ chrome.tabs.onActivated.addListener(handleTabActivation);
 
 
 async function handleUrl(tabId, changeInfo, tab) {
-	if (tab.status === "complete") {
-		console.log("URL updated");
-		console.log(tabId);
-		console.log(changeInfo);
-		console.log(tab);
+	// console.log(changeInfo);
+	// console.log(tab);
+
+	if (curTab) {
+		stopTracking();
 	}
+
+	startTracking(tab);
 }
 const urlFilter = {
 	properties: ["url"]
