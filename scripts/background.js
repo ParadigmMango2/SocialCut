@@ -1,5 +1,3 @@
-let curTab = null;
-
 const audibleTabs = new Map();
 
 
@@ -44,7 +42,13 @@ async function setCurTab(tab) {
 
 
 async function getCurTab() {
-	
+	const { curTab } = await chrome.storage.local.get("curTab");
+	return curTab;
+}
+
+
+async function resetCurTab() {
+	await chrome.storage.local.set({ curTab: null });
 }
 
 
@@ -58,14 +62,10 @@ async function init() {
 
 	const tab = await getActiveTab();
 	if (curWindow !== chrome.windows.WINDOW_ID_NONE) {
-		curTab = {
-			"id": tab.id,
-			"domain": getDomain(tab.url),
-			"startTime": Date.now()
-		}
+		await setCurTab(tab);
+	} else {
+		await resetCurTab();
 	}
-
-	await chrome.storage.local.set({ curTab: null });
 
 	// console.log(curWindow);
 	// console.log(tab);
@@ -92,25 +92,21 @@ chrome.runtime.onInstalled.addListener(handleInstall);
 // ======================================================================
 
 async function startTracking(tab) {
-	curTab = {
-		"id": tab.id,
-		"domain": getDomain(tab.url),
-		"startTime": Date.now()
-	}
+	await setCurTab(tab);
 
 	setCurTab(tab);
 
-	const { curTab: curTabVal } = await chrome.storage.local.get("curTab");
-
-	console.log(curTabVal);
+	// console.log(await getCurTab());
 }
 
 
 async function stopTracking() {
+	const curTab = await getCurTab();
+
 	const domain = curTab["domain"];
 	const timeListened = Date.now() - curTab["startTime"];
 
-	curTab = null;
+	await resetCurTab();
 
 	// Update site times
 	const { totalSiteTimes } = await chrome.storage.local.get("totalSiteTimes");
@@ -126,7 +122,7 @@ async function stopTracking() {
 async function handleTabActivation(activeInfo) {
 	const tab = await chrome.tabs.get(activeInfo.tabId);
 
-	if (curTab) {
+	if (await getCurTab()) {
 		await stopTracking();
 	}
 
@@ -142,7 +138,7 @@ async function handleUrl(tabId, changeInfo, tab) {
 	// console.log(changeInfo);
 	// console.log(tab);
 
-	if (curTab) {
+	if (await getCurTab()) {
 		await stopTracking();
 	}
 
@@ -158,7 +154,7 @@ async function handleWindow(windowId) {
 	const curWindow = windowId;
 	// console.log("Cur window:" + curWindow);
 
-	if (curTab) {
+	if (await getCurTab()) {
 		await stopTracking();
 	}
 
@@ -237,10 +233,10 @@ const audibleFilter = {
 async function handleSuspend() {
 	console.log("Extension suspending")
 
-	if (curTab) {
+	if (await getCurTab()) {
 		await stopTracking();
 	}
 
-	await chrome.storage.local.set({ curTab: null });
+	await resetCurTab();
 }
 chrome.runtime.onSuspend.addListener(handleSuspend);
