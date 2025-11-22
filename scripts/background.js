@@ -1,5 +1,11 @@
-const audibleTabs = new Map();
+// ======================================================================
+// Constants
+// ======================================================================
+const syncPeriod = 1; // in minutes
 const curTabLock = "cur_tab";
+const syncAlarm = "sync_alarm";
+
+const audibleTabs = new Map();
 
 
 
@@ -227,9 +233,25 @@ const audibleFilter = {
 
 
 // ======================================================================
-// Periodically Update Tracking
+// Sync Tracking
 // ======================================================================
 
+async function handleSync(alarm) {
+	if (alarm.name === syncAlarm) {
+		console.log("Syncing...");
+
+		const curTab = await getCurTab();
+
+		if (curTab) {
+			const tab = await chrome.tabs.get(curTab.id);
+
+			await stopTracking();
+			await startTracking(tab);
+		}
+	}
+}
+chrome.alarms.create(syncAlarm, { periodInMinutes: syncPeriod });
+chrome.alarms.onAlarm.addListener(handleSync);
 
 
 
