@@ -3,6 +3,7 @@
 // ======================================================================
 const syncPeriod = 1; // in minutes
 const curTabLock = "cur_tab";
+const timesLock = "times";
 const syncAlarm = "sync_alarm";
 
 const audibleTabs = new Map();
@@ -122,12 +123,14 @@ async function stopTracking() {
 	await resetCurTab();
 
 	// Update site times
-	const { totalSiteTimes = {} } = await chrome.storage.local.get("totalSiteTimes");
-	const totalTime = (totalSiteTimes[domain] || 0) + timeListened;
-	totalSiteTimes[domain] = totalTime;
-	await chrome.storage.local.set({ totalSiteTimes });
+	await navigator.locks.request(timesLock, async (lock) => {
+		const { totalSiteTimes = {} } = await chrome.storage.local.get("totalSiteTimes");
+		const totalTime = (totalSiteTimes[domain] || 0) + timeListened;
+		totalSiteTimes[domain] = totalTime;
+		await chrome.storage.local.set({ totalSiteTimes });
 
-	console.log(totalSiteTimes);
+		console.log(totalSiteTimes);
+	});
 }
 
 
@@ -202,12 +205,14 @@ async function stopTrackingAudible(tabId) {
 	audibleTabs.delete(tabId);
 
 	// Update site times
-	const { totalSiteTimes = {} } = await chrome.storage.local.get("totalSiteTimes");
-	const totalTime = (totalSiteTimes[domain] || 0) + timeListened;
-	totalSiteTimes[domain] = totalTime;
-	await chrome.storage.local.set({ totalSiteTimes });
+	await navigator.locks.request(timesLock, async (lock) => {
+		const { totalSiteTimes = {} } = await chrome.storage.local.get("totalSiteTimes");
+		const totalTime = (totalSiteTimes[domain] || 0) + timeListened;
+		totalSiteTimes[domain] = totalTime;
+		await chrome.storage.local.set({ totalSiteTimes });
 
-	// console.log(totalSiteTimes);
+		// console.log(totalSiteTimes);
+	});
 }
 
 
