@@ -1,4 +1,5 @@
 const audibleTabs = new Map();
+const curTabLock = "cur_tab";
 
 
 
@@ -37,18 +38,24 @@ async function setCurTab(tab) {
 		"startTime": Date.now()
 	}
 
-	await chrome.storage.local.set({ curTab: curTabVal });
+	await navigator.locks.request(curTabLock, async (lock) => {
+		await chrome.storage.local.set({ curTab: curTabVal });
+	});
 }
 
 
 async function getCurTab() {
-	const { curTab } = await chrome.storage.local.get("curTab");
-	return curTab;
+	return await navigator.locks.request(curTabLock, async (lock) => {
+		const { curTab } = await chrome.storage.local.get("curTab");
+		return curTab;
+	});
 }
 
 
 async function resetCurTab() {
-	await chrome.storage.local.set({ curTab: null });
+	await navigator.locks.request(curTabLock, async (lock) => {
+		await chrome.storage.local.set({ curTab: null });
+	});
 }
 
 
