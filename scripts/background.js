@@ -31,6 +31,23 @@ async function getCurrentWindow() {
 }
 
 
+async function setCurTab(tab) {
+	// Only store needed data for privacy
+	const curTabVal = {
+		"id": tab.id,
+		"domain": getDomain(tab.url),
+		"startTime": Date.now()
+	}
+
+	await chrome.storage.local.set({ curTab: curTabVal });
+}
+
+
+async function getCurTab() {
+	
+}
+
+
 
 // ======================================================================
 // Init Logic
@@ -39,7 +56,7 @@ async function getCurrentWindow() {
 async function init() {
 	curWindow = await getCurrentWindow();
 
-	const tab = await getCurrentTab();
+	const tab = await getActiveTab();
 	if (curWindow !== chrome.windows.WINDOW_ID_NONE) {
 		curTab = {
 			"id": tab.id,
@@ -47,6 +64,8 @@ async function init() {
 			"startTime": Date.now()
 		}
 	}
+
+	await chrome.storage.local.set({ curTab: null });
 
 	// console.log(curWindow);
 	// console.log(tab);
@@ -78,6 +97,12 @@ async function startTracking(tab) {
 		"domain": getDomain(tab.url),
 		"startTime": Date.now()
 	}
+
+	setCurTab(tab);
+
+	const { curTab: curTabVal } = await chrome.storage.local.get("curTab");
+
+	console.log(curTabVal);
 }
 
 
@@ -96,15 +121,16 @@ async function stopTracking() {
 	console.log(totalSiteTimes);
 }
 
+
 // NOTE: Look out for active changed when making new window
 async function handleTabActivation(activeInfo) {
 	const tab = await chrome.tabs.get(activeInfo.tabId);
 
 	if (curTab) {
-		stopTracking();
+		await stopTracking();
 	}
 
-	startTracking(tab);
+	await startTracking(tab);
 
 	// console.log("Active changed")
 	// console.log(tab);
@@ -117,10 +143,10 @@ async function handleUrl(tabId, changeInfo, tab) {
 	// console.log(tab);
 
 	if (curTab) {
-		stopTracking();
+		await stopTracking();
 	}
 
-	startTracking(tab);
+	await startTracking(tab);
 }
 const urlFilter = {
 	properties: ["url"]
@@ -133,12 +159,12 @@ async function handleWindow(windowId) {
 	// console.log("Cur window:" + curWindow);
 
 	if (curTab) {
-		stopTracking();
+		await stopTracking();
 	}
 
 	if (curWindow !== chrome.windows.WINDOW_ID_NONE) {
 		const tab = await getActiveTab();
-		startTracking(tab);
+		await startTracking(tab);
 	}
 }
 chrome.windows.onFocusChanged.addListener(handleWindow);
@@ -198,6 +224,13 @@ const audibleFilter = {
 
 
 // ======================================================================
+// Periodically Update Tracking
+// ======================================================================
+
+
+
+
+// ======================================================================
 // Suspend Logic
 // ======================================================================
 
@@ -205,7 +238,9 @@ async function handleSuspend() {
 	console.log("Extension suspending")
 
 	if (curTab) {
-		stopTracking();
+		await stopTracking();
 	}
+
+	await chrome.storage.local.set({ curTab: null });
 }
 chrome.runtime.onSuspend.addListener(handleSuspend);
