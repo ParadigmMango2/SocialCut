@@ -122,7 +122,7 @@ async function stopTracking() {
 	await resetCurTab();
 
 	// Update site times
-	const { totalSiteTimes } = await chrome.storage.local.get("totalSiteTimes");
+	const { totalSiteTimes = {} } = await chrome.storage.local.get("totalSiteTimes");
 	const totalTime = (totalSiteTimes[domain] || 0) + timeListened;
 	totalSiteTimes[domain] = totalTime;
 	await chrome.storage.local.set({ totalSiteTimes });
@@ -151,16 +151,16 @@ async function handleUrl(tabId, changeInfo, tab) {
 	// console.log(changeInfo);
 	// console.log(tab);
 
+	// cross-platform version of event filter
+	if (!changeInfo.url) return;
+
 	if (await getCurTab()) {
 		await stopTracking();
 	}
 
 	await startTracking(tab);
 }
-const urlFilter = {
-	properties: ["url"]
-};
-chrome.tabs.onUpdated.addListener(handleUrl, urlFilter);
+chrome.tabs.onUpdated.addListener(handleUrl);
 
 
 async function handleWindow(windowId) {
@@ -202,7 +202,7 @@ async function stopTrackingAudible(tabId) {
 	audibleTabs.delete(tabId);
 
 	// Update site times
-	const { totalSiteTimes } = await chrome.storage.local.get("totalSiteTimes");
+	const { totalSiteTimes = {} } = await chrome.storage.local.get("totalSiteTimes");
 	const totalTime = (totalSiteTimes[domain] || 0) + timeListened;
 	totalSiteTimes[domain] = totalTime;
 	await chrome.storage.local.set({ totalSiteTimes });
@@ -214,6 +214,10 @@ async function stopTrackingAudible(tabId) {
 async function handleAudibleTab(tabId, changeInfo, tab) {
 	// console.log(changeInfo);
 
+	if (!changeInfo.url && !changeInfo.audible) {
+		return;
+	}
+
 	if (changeInfo.url && audibleTabs.has(tabId)) {
 		stopTrackingAudible(tabId);
 		startTrackingAudible(tabId, tab);
@@ -224,11 +228,7 @@ async function handleAudibleTab(tabId, changeInfo, tab) {
 	}
 }
 
-const audibleFilter = {
-	properties: ["audible", "url"]
-};
-
-// chrome.tabs.onUpdated.addListener(handleAudibleTab, audibleFilter);
+// chrome.tabs.onUpdated.addListener(handleAudibleTab);
 
 
 
