@@ -222,6 +222,18 @@ async function handleUrl(tabId, changeInfo, tab) {
 chrome.tabs.onUpdated.addListener(handleUrl);
 
 
+async function handleAudible(tabId, changeInfo, tab) {
+	if (changeInfo.audible === undefined) return;
+
+	console.log("Audible Changed");
+
+	await updateAudibleBgTabs(async (audibleTabsMap) => {
+		audibleTabsMap.delete(String(tabId));
+	});
+}
+chrome.tabs.onUpdated.addListener(handleAudible);
+
+
 async function handleWindow(windowId) {
 	const curWindow = windowId;
 	// console.log("Cur window:" + curWindow);
@@ -236,60 +248,6 @@ async function handleWindow(windowId) {
 	}
 }
 chrome.windows.onFocusChanged.addListener(handleWindow);
-
-
-
-// ======================================================================
-// Audible Tab Tracking
-// ======================================================================
-
-async function startTrackingAudible(tabId, tab) {
-	audibleTabs.set(
-		tabId,
-		{
-			"domain": getDomain(tab.url),
-			"startTime": Date.now()
-		}
-	);
-}
-
-
-async function stopTrackingAudible(tabId) {
-	const domain = audibleTabs.get(tabId)["domain"];
-	const timeListened = Date.now() - audibleTabs.get(tabId)["startTime"];
-
-	audibleTabs.delete(tabId);
-
-	// Update site times
-	await navigator.locks.request(timesLock, async (lock) => {
-		const { totalSiteTimes = {} } = await chrome.storage.local.get("totalSiteTimes");
-		const totalTime = (totalSiteTimes[domain] || 0) + timeListened;
-		totalSiteTimes[domain] = totalTime;
-		await chrome.storage.local.set({ totalSiteTimes });
-
-		// console.log(totalSiteTimes);
-	});
-}
-
-
-async function handleAudibleTab(tabId, changeInfo, tab) {
-	// console.log(changeInfo);
-
-	if (!changeInfo.url && !changeInfo.audible) {
-		return;
-	}
-
-	if (changeInfo.url && audibleTabs.has(tabId)) {
-		stopTrackingAudible(tabId);
-		startTrackingAudible(tabId, tab);
-	} else if (changeInfo.audible) {
-		startTrackingAudible(tabId, tab);
-	} else if (!changeInfo.audible && audibleTabs.has(tabId)) {
-		stopTrackingAudible(tabId);
-	}
-}
-
-// chrome.tabs.onUpdated.addListener(handleAudibleTab);
 
 
 
