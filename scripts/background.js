@@ -3,6 +3,7 @@
 // ======================================================================
 const syncPeriod = 1; // in minutes
 const curTabLock = "cur_tab";
+const audibleBgTabsLock = "audible_bg_tabs";
 const timesLock = "times";
 const syncAlarm = "sync_alarm";
 
@@ -66,6 +67,39 @@ async function resetCurTab() {
 }
 
 
+async function getAudibleBgTabs() {
+	return await navigator.locks.request(audibleBgTabsLock, async (lock) => {
+		const { audibleBackgroundTabs: audibleTabsData = {} } = await chrome.storage.local.get("audibleBackgroundTabs");
+		const audibleTabsMap = new Map(Object.entries(audibleTabsData));
+
+		// console.log("getAudibleBgTabs called");
+
+		return audibleTabsMap;
+	});
+}
+
+
+async function setAubileBgTabs(audibleTabsMap) {
+	await navigator.locks.request(audibleBgTabsLock, async (lock) => {
+		const newAudibleTabsData = Object.fromEntries(audibleTabsMap);
+		await chrome.storage.local.set({ audibleBackgroundTabs: newAudibleTabsData });
+	});
+}
+
+
+async function updateAudibleBgTabs(updateFn) {
+	await navigator.locks.request(audibleBgTabsLock, async (lock) => {
+		const { audibleBackgroundTabs: audibleTabsData = {} } = await chrome.storage.local.get("audibleBackgroundTabs");
+		const audibleTabsMap = new Map(Object.entries(audibleTabsData));
+
+		await updateFn(audibleTabsMap);
+
+		const newAudibleTabsData = Object.fromEntries(audibleTabsMap);
+		await chrome.storage.local.set({ audibleBackgroundTabs: newAudibleTabsData });
+	});
+}
+
+
 
 // ======================================================================
 // Init Logic
@@ -80,6 +114,10 @@ async function init() {
 	} else {
 		await resetCurTab();
 	}
+
+	await navigator.locks.request(audibleBgTabsLock, async (lock) => {
+		await chrome.storage.local.set({ audibleBackgroundTabs: {} });
+	});
 
 	// console.log(curWindow);
 	// console.log(tab);
@@ -105,16 +143,24 @@ chrome.runtime.onInstalled.addListener(handleInstall);
 // Current Tab Tracking
 // ======================================================================
 
-async function startTracking(tab) {
-	await setCurTab(tab);
+async function startTrackingActive(tab) {
+// 	await navigator.locks.request(audibleBgTabsLock, async (lock) => {
+// 		const { audibleBackgroundTabs: audibleTabsData = {} } = await chrome.storage.local.get("audibleBackgroundTabs");
+// 		const audibleTabsMap = new Map(Object.entries(audibleTabsData));
+//
+// 		if (audibleTabsMap.has(tab.id)) {
+// 			audibleTabsMap.delete(tab.id);
+//
+// 		}
+// 	});
 
-	setCurTab(tab);
+	await setCurTab(tab);
 
 	// console.log(await getCurTab());
 }
 
 
-async function stopTracking() {
+async function stopTrackingActive() {
 	const curTab = await getCurTab();
 
 	const domain = curTab["domain"];
@@ -131,6 +177,16 @@ async function stopTracking() {
 
 		console.log(totalSiteTimes);
 	});
+
+	const fullTab = await chrome.tabs.get(curTab.id);
+	console.log(fullTab.audible);
+	console.log(fullTab);
+	if (fullTab.audible) {
+		await updateAudibleBgTabs(async (audibleTabsMap) => {
+			audibleTabsMap.set(String(curTab.id), { domain: curTab.domain, startTime: curTab.startTime});
+			console.log(audibleTabsMap);
+		});
+	}
 }
 
 
@@ -139,10 +195,10 @@ async function handleTabActivation(activeInfo) {
 	const tab = await chrome.tabs.get(activeInfo.tabId);
 
 	if (await getCurTab()) {
-		await stopTracking();
+		await stopTrackingActive();
 	}
 
-	await startTracking(tab);
+	await startTrackingActive(tab);
 
 	// console.log("Active changed")
 	// console.log(tab);
@@ -158,10 +214,10 @@ async function handleUrl(tabId, changeInfo, tab) {
 	if (!changeInfo.url) return;
 
 	if (await getCurTab()) {
-		await stopTracking();
+		await stopTrackingActive();
 	}
 
-	await startTracking(tab);
+	await startTrackingActive(tab);
 }
 chrome.tabs.onUpdated.addListener(handleUrl);
 
@@ -171,12 +227,12 @@ async function handleWindow(windowId) {
 	// console.log("Cur window:" + curWindow);
 
 	if (await getCurTab()) {
-		await stopTracking();
+		await stopTrackingActive();
 	}
 
 	if (curWindow !== chrome.windows.WINDOW_ID_NONE) {
 		const tab = await getActiveTab();
-		await startTracking(tab);
+		await startTrackingActive(tab);
 	}
 }
 chrome.windows.onFocusChanged.addListener(handleWindow);
@@ -250,8 +306,8 @@ async function handleSync(alarm) {
 		if (curTab) {
 			const tab = await chrome.tabs.get(curTab.id);
 
-			await stopTracking();
-			await startTracking(tab);
+			await stopTrackingActive();
+			await startTrackingActive(tab);
 		}
 	}
 }
@@ -268,7 +324,7 @@ async function handleSuspend() {
 	console.log("Extension suspending")
 
 	if (await getCurTab()) {
-		await stopTracking();
+		await stopTrackingActive();
 	}
 
 	await resetCurTab();
